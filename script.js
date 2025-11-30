@@ -5,42 +5,86 @@ document.addEventListener('DOMContentLoaded', function() {
     const taskInput = document.getElementById('task-input');
     const taskList = document.getElementById('task-list');
 
+    // In-memory list of tasks
+    let tasks = [];
+
     /**
-     * addTask - Create a new task list item and append it to the list
-     * @param {boolean} [suppressAlert=false] - When true, don't show an alert if input is empty.
+     * saveTasks - Serialize the tasks array to localStorage
      */
-    function addTask(suppressAlert = false) {
-        // Get and trim the input value
-        const taskText = taskInput.value.trim();
+    function saveTasks() {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
 
-        // If no text, optionally warn the user and return early
-        if (taskText === '') {
-            if (!suppressAlert) {
-                alert('Please enter a task.');
-            }
-            return; // don't add an empty task
-        }
-
-        // Create a new list item and set its content
+    /**
+     * createTaskElement - Create DOM element for a task object and append to the list
+     * @param {{id: string, text: string}} task
+     */
+    function createTaskElement(task) {
         const li = document.createElement('li');
-        li.textContent = taskText;
+        li.textContent = task.text;
 
         // Create a Remove button and set up its behavior
         const removeButton = document.createElement('button');
         removeButton.textContent = 'Remove';
         removeButton.className = 'remove-btn';
 
-        // When clicked, remove the list item from the list
+        // When clicked, remove the list item from the list and update storage
         removeButton.onclick = function() {
+            // Remove from DOM
             taskList.removeChild(li);
+            // Remove from tasks array
+            tasks = tasks.filter(t => t.id !== task.id);
+            // Save updated tasks to localStorage
+            saveTasks();
         };
 
-        // Append the remove button to the list item and add the item to the list
         li.appendChild(removeButton);
         taskList.appendChild(li);
+    }
+
+    /**
+     * addTask - Create a new task and append it to the list (optionally save)
+     * @param {string} [taskText] - Text for the task; if omitted, value from the input will be used
+     * @param {boolean} [save=true] - Whether to save the task to localStorage
+     */
+    function addTask(taskText, save = true) {
+        // Get and trim the input value if taskText wasn't provided
+        const text = (typeof taskText === 'undefined' || taskText === null) ? taskInput.value.trim() : String(taskText).trim();
+
+        // If no text, warn the user and return early
+        if (text === '') {
+            alert('Please enter a task.');
+            return; // don't add an empty task
+        }
+
+        // Create a new task object
+        const task = {
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 8),
+            text
+        };
+
+        // Add to memory and DOM
+        tasks.push(task);
+        createTaskElement(task);
+
+        // Save to localStorage if requested
+        if (save) {
+            saveTasks();
+        }
 
         // Clear the input field for the next entry
         taskInput.value = '';
+    }
+
+    /**
+     * loadTasks - Load tasks array from localStorage and populate DOM
+     */
+    function loadTasks() {
+        const stored = JSON.parse(localStorage.getItem('tasks') || '[]');
+        if (Array.isArray(stored)) {
+            tasks = stored;
+            tasks.forEach(t => createTaskElement(t));
+        }
     }
 
     // Add click listener to Add Task button
@@ -55,7 +99,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Run addTask on DOMContentLoaded to initialize state if needed
-    // Use suppressAlert=true to prevent showing an alert when the input is empty
-    addTask(true);
+    // Load tasks from localStorage so state persists across sessions
+    loadTasks();
 });
